@@ -9,7 +9,7 @@ using System.Threading;
 public class Click
 {
     [DllImport("user32.dll")]
-    static extern void mouse_event(int dwFlags, int dx, int dy,
+    static public extern void mouse_event(int dwFlags, int dx, int dy,
                   int dwData, int dwExtraInfo);
 
     [Flags]
@@ -25,23 +25,21 @@ public class Click
         RIGHTUP = 0x00000010
     }
 
-    public void leftClick(Point p)
+    public void leftClick(int duration)
     {
-        Cursor.Position = p;
         mouse_event((int)(MouseEventFlags.LEFTDOWN), 0, 0, 0, 0);
+        //Thread.Sleep(duration);
         mouse_event((int)(MouseEventFlags.LEFTUP), 0, 0, 0, 0);
     }
 
     public void rightClick(Point p)
     {
-        Cursor.Position = p;
         mouse_event((int)(MouseEventFlags.RIGHTDOWN), 0, 0, 0, 0);
         mouse_event((int)(MouseEventFlags.RIGHTUP), 0, 0, 0, 0);
     }
 
     public void doubleRightClick(Point p)
     {
-        Cursor.Position = p;
         mouse_event((int)(MouseEventFlags.RIGHTDOWN), 0, 0, 0, 0);
         mouse_event((int)(MouseEventFlags.RIGHTUP), 0, 0, 0, 0);
         mouse_event((int)(MouseEventFlags.RIGHTDOWN), 0, 0, 0, 0);
@@ -50,7 +48,6 @@ public class Click
 
     public void holDownLeft(Point p, int tempo)
     {
-        Cursor.Position = p;
         mouse_event((int)(MouseEventFlags.LEFTDOWN), 0, 0, 0, 0);
         Thread.Sleep(tempo);
         mouse_event((int)(MouseEventFlags.LEFTUP), 0, 0, 0, 0);
@@ -58,7 +55,6 @@ public class Click
 
     public void holDownRight(Point p, int tempo)
     {
-        Cursor.Position = p;
         mouse_event((int)(MouseEventFlags.RIGHTDOWN), 0, 0, 0, 0);
         Thread.Sleep(tempo);
         mouse_event((int)(MouseEventFlags.RIGHTUP), 0, 0, 0, 0);

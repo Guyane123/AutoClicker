@@ -4,120 +4,195 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Media;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-
+using static Click;
 
 namespace AutoClicker
 {
     public partial class Form1 : Form, IMessageFilter
     {
         private KeyboardHook keyboardHook;
+        private MouseHook mouseHook;
+        private SoundPlayer clickSound = new SoundPlayer(@"assets/mouse1.wav");
+        private Click c = new Click();
+
         public Form1()
         {
             InitializeComponent();
             KeyPreview = true;
         }
 
-        Click c = new Click();
-        int locationX;
-        int locationY;
         private void Form1_Load(object sender, EventArgs e)
         {
             keyboardHook = new KeyboardHook();
             KeyboardHook.Hook();
+            KeyboardHook.KeyDown += HandleKeyUp;
 
-            KeyboardHook.KeyDown += HandleKeyDown;
-
+            mouseHook = new MouseHook();
+            MouseHook.Hook();
+            MouseHook.MouseDown += HandleMouseDown;
+            MouseHook.MouseUp += HandleMouseUp;
         }
 
-        private void HandleKeyDown(int keyCode)
+        private void HandleKeyUp(int keyCode)
         {
-            label2.Text = keyCode.ToString();
-            if (keyCode == (int)Keys.F8)
+            if (keyCode == (int)Keys.F6)
             {
-                StopAutoclicker();
-            }if(keyCode == (int)Keys.F7)
+                AutoclickerCheckBox.Checked = !AutoclickerCheckBox.Checked;
+                if (!AutoclickerCheckBox.Checked)
+                {
+                    StopAutoclicker();
+                }
+            }
+        }
+
+        private void HandleMouseDown()
+        {
+            if (AutoclickerCheckBox.Checked)
             {
                 StartAutoclicker();
             }
         }
+
+        private void HandleMouseUp()
+        {
+            if (AutoclickerCheckBox.Checked)
+            {
+                StopAutoclicker();
+            }
+        }
+
         private void cPSTrackBar_Scroll(object sender, EventArgs e)
         {
             cps.Text = "CPS: " + cPSTrackBar.Value.ToString();
         }
 
-        private void mousePos_Tick(object sender, EventArgs e)
-        {
-            locationX = Cursor.Position.X;
-            locationY = Cursor.Position.Y;
-        }
+        private Random random = new Random();
+        private double averageInterval = 1000.0;
 
         private int GenerateRandomInterval()
         {
-            double minCPS = (int)cPSTrackBar.Value - new Random().NextDouble() * new Random().Next(0,2);
-            double maxCPS = (int)cPSTrackBar.Value + new Random().NextDouble() * new Random().Next(0, 2);
+            double minCPS = (int)cPSTrackBar.Value - random.NextDouble() * 0.5; // Adjust the range here as needed
+            double maxCPS = (int)cPSTrackBar.Value + random.NextDouble() * 0.5; // Adjust the range here as needed
 
-            Random random = new Random();
             double randomCPS = random.NextDouble() * (maxCPS - minCPS) + minCPS;
-            int randomInterval = (int)(random.Next(new Random().Next(800, 1000), new Random().Next(1000, 1200)) / randomCPS);
+            averageInterval = (1000.0 / randomCPS) * 0.9 + averageInterval * 0.1; // Gradual adaptation of average interval
 
-            return randomInterval;
+            // Introduce a probability of click clustering (20% chance of cluster)
+            int clusterSize = random.Next(2, 6); // You can adjust the cluster size range as needed
+            if (random.NextDouble() < 0.2 && randomCPS > 2)
+            {
+                averageInterval /= clusterSize;
+            }
+
+            // Introduce a small hesitation before some clicks (5% chance of hesitation)
+            if (random.NextDouble() < 0.05)
+            {
+                int hesitationDuration = random.Next(50, 200); // You can adjust the hesitation duration range as needed
+                averageInterval += hesitationDuration;
+            }
+
+            // Use a Gaussian distribution to randomize intervals (adjust the standard deviation as needed)
+            double variation = averageInterval * 0.1; // You can adjust the standard deviation as needed
+            double randomizedInterval = Math.Max(0, NextGaussian(averageInterval, variation));
+
+            // Introduce a probability of click interruption (10% chance of interruption)
+            if (random.NextDouble() < 0.1)
+            {
+                int interruptionDuration = random.Next(20, 200); // You can adjust the interruption duration range as needed
+                randomizedInterval += interruptionDuration;
+            }
+
+            return (int)randomizedInterval;
         }
+
+        private double NextGaussian(double mean, double stdDev)
+        {
+            double u1 = 1.0 - random.NextDouble();
+            double u2 = 1.0 - random.NextDouble();
+            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+            return mean + stdDev * randStdNormal;
+        }
+
+
 
         private void click_Tick(object sender, EventArgs e)
         {
-            Point Pos = new Point(locationX, locationY);
-            c.leftClick(Pos);
+
+            mouse_event((int)(MouseEventFlags.LEFTDOWN), 0, 0, 0, 0);
+            mouse_event((int)(MouseEventFlags.LEFTUP), 0, 0, 0, 0);
+
+            if (ClickSoundCheckBox.Checked)
+            {
+                clickSound.Play();
+            }
+
+
 
             int randomInterval = GenerateRandomInterval();
             label1.Text = randomInterval.ToString();
             click.Interval = randomInterval;
-
             click.Stop();
             click.Start();
         }
+
+
 
         public void StartAutoclicker()
         {
             click.Stop();
             if (cPSTrackBar.Value != 0)
             {
-
                 click.Enabled = true;
-                click.Interval = new Random().Next(0, 1000) / cPSTrackBar.Value;
-                click.Start();
+                click.Interval = new Random().Next(900, 1100) / cPSTrackBar.Value;
 
+
+
+                click.Start();
             }
             else
             {
                 click.Stop();
             }
-
-            startBtn.Enabled = false;
-            stopBtn.Enabled = true;
         }
 
         public void StopAutoclicker()
         {
             click.Stop();
-            stopBtn.Enabled = false;
-            startBtn.Enabled = true;
-        }
 
+
+        }
 
         public bool PreFilterMessage(ref Message m)
         {
             const int WM_KEYDOWN = 0x0100;
             const int WM_KEYUP = 0x0101;
+            const int WM_LBUTTONUP = 0x0201;
+            const int WM_LBUTTONDOWN = 0x0202;
 
             if (m.Msg == WM_KEYDOWN)
             {
-                if ((Keys)m.WParam.ToInt32() == Keys.F8)
+                if ((Keys)m.WParam.ToInt32() == Keys.F6)
+                {
+                    AutoclickerCheckBox.Checked = !AutoclickerCheckBox.Checked;
+                }
+            }
+            else if (m.Msg == WM_LBUTTONDOWN)
+            {
+                if ((Keys)m.WParam.ToInt32() == Keys.LButton)
+                {
+                    StartAutoclicker();
+                }
+            }
+            else if (m.Msg == WM_LBUTTONUP)
+            {
+                if ((Keys)m.WParam.ToInt32() == Keys.LButton)
                 {
                     StopAutoclicker();
                 }
@@ -126,32 +201,23 @@ namespace AutoClicker
             return false;
         }
 
-        private void startBtn_Click(object sender, EventArgs e)
-        {
-            StartAutoclicker();
-        }
-
-        private void stopBtn_Click(object sender, EventArgs e)
-        {
-            StopAutoclicker();
-        }
-
         private void checkBox1_CheckedChanged(object sender, EventArgs e)
         {
-            if(checkBox1.Checked)
+            if (checkBox1.Checked)
             {
                 cPSTrackBar.Maximum = 50;
-            }else
+            }
+            else
             {
                 cPSTrackBar.Maximum = 20;
             }
         }
 
-        private void randomizer_Tick(object sender, EventArgs e)
+        private void doubleClickTrackBar_Scroll(object sender, EventArgs e)
         {
-
+            int value = doubleClickTrackBar.Value * 10;
+            label4.Text = "Chance : " + value.ToString() + "%";
         }
 
     }
-
 }
