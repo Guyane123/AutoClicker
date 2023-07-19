@@ -8,7 +8,6 @@ using System;
 
 namespace AutoClicker {
 
-
     public class MouseHook
   
     {

@@ -38,6 +38,8 @@ namespace AutoClicker
             MouseHook.Hook();
             MouseHook.MouseDown += HandleMouseDown;
             MouseHook.MouseUp += HandleMouseUp;
+
+            arrow1.BackgroundImage = goDown;
         }
 
         private void HandleKeyUp(int keyCode)
@@ -212,12 +214,55 @@ namespace AutoClicker
                 cPSTrackBar.Maximum = 20;
             }
         }
+        private bool isOpen = true;
 
-        private void doubleClickTrackBar_Scroll(object sender, EventArgs e)
+        Bitmap goDown = new Bitmap(@"assets/downarrowimg.png");
+        Bitmap goUp = new Bitmap(@"assets/uparrowimg.png");
+        private void arrow1_Click(object sender, EventArgs e)
         {
-            int value = doubleClickTrackBar.Value * 10;
-            label4.Text = "Chance : " + value.ToString() + "%";
+            if (isOpen)
+            {
+                panel2.Height = 370;
+                arrow1.BackgroundImage = goUp;
+            }
+            else
+            {
+                panel2.Height = 50;
+                arrow1.BackgroundImage = goDown;
+            }
+            isOpen = !isOpen;
         }
 
+        private void panel2_Click(object sender, EventArgs e)
+        {
+            if (isOpen)
+            {
+                panel2.Height = 370;
+                isOpen = !isOpen;
+            }
+        }
+    }
+
+
+
+    public class Arrow : Button
+    {
+        private Color borderColor = Color.FromArgb(30,30,30); 
+
+        public Arrow()
+        {
+            this.FlatStyle = FlatStyle.Flat;
+            this.FlatAppearance.BorderSize = 1;
+            this.FlatAppearance.BorderColor = borderColor;
+            this.Height = 50;
+            this.Width = 50;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            ControlPaint.DrawBorder(e.Graphics, this.ClientRectangle, borderColor, ButtonBorderStyle.Solid);
+        }
     }
 }
