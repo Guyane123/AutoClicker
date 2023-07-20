@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Media;
 using System.Reflection.Emit;
@@ -11,10 +12,15 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Forms.VisualStyles;
+
 using static Click;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace AutoClicker
 {
+
+
     public partial class Form1 : Form, IMessageFilter
     {
         private KeyboardHook keyboardHook;
@@ -27,9 +33,15 @@ namespace AutoClicker
             InitializeComponent();
             KeyPreview = true;
         }
+        private void InitializeCustomVScrollBar()
+        {
+            // Add the custom scrollbar to the form or control
+        }
+
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            VerticalScroll.Visible = false;
             keyboardHook = new KeyboardHook();
             KeyboardHook.Hook();
             KeyboardHook.KeyDown += HandleKeyUp;
@@ -39,15 +51,42 @@ namespace AutoClicker
             MouseHook.MouseDown += HandleMouseDown;
             MouseHook.MouseUp += HandleMouseUp;
 
-            arrow1.BackgroundImage = goDown;
+            arrow1.Image = goDown;
+            panel2.Height = 60;
+            arrow1.SizeMode = PictureBoxSizeMode.StretchImage;
+
+
+            this.label7.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.arrow1.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.arrow1.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.cPSTrackBar.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.ClickSoundCheckBox.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.AutoClickerOnOff.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.checkBox1.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.cps.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.label3.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.label4.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.label5.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.label6.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+
+
+            AutoClickerOnOff.ButtonImage = Image.FromFile(@"assets/autoclickerimg.png");
+
+
+        }
+
+
+        private void handleChildrenMouseOver(object sender, EventArgs e)
+        {
+            panel2.isMouseOver = true;
         }
 
         private void HandleKeyUp(int keyCode)
         {
             if (keyCode == (int)Keys.F6)
             {
-                AutoclickerCheckBox.Checked = !AutoclickerCheckBox.Checked;
-                if (!AutoclickerCheckBox.Checked)
+                AutoClickerOnOff.IsOn = !AutoClickerOnOff.IsOn;
+                if (!AutoClickerOnOff.IsOn)
                 {
                     StopAutoclicker();
                 }
@@ -56,7 +95,7 @@ namespace AutoClicker
 
         private void HandleMouseDown()
         {
-            if (AutoclickerCheckBox.Checked)
+            if (AutoClickerOnOff.IsOn)
             {
                 StartAutoclicker();
             }
@@ -64,7 +103,7 @@ namespace AutoClicker
 
         private void HandleMouseUp()
         {
-            if (AutoclickerCheckBox.Checked)
+            if (AutoClickerOnOff.IsOn)
             {
                 StopAutoclicker();
             }
@@ -135,11 +174,18 @@ namespace AutoClicker
                 clickSound.Play();
             }
 
-
-
             int randomInterval = GenerateRandomInterval();
-            label1.Text = randomInterval.ToString();
-            click.Interval = randomInterval;
+
+            if (RandomizerCheckBox.Checked)
+            {
+                click.Interval = randomInterval;
+                label1.Text = randomInterval.ToString();
+            }
+            else
+            {
+                click.Interval = 1000/ (int)cPSTrackBar.Value;
+            }
+
             click.Stop();
             click.Start();
         }
@@ -182,7 +228,7 @@ namespace AutoClicker
             {
                 if ((Keys)m.WParam.ToInt32() == Keys.F6)
                 {
-                    AutoclickerCheckBox.Checked = !AutoclickerCheckBox.Checked;
+                    AutoClickerOnOff.IsOn = !AutoClickerOnOff.IsOn;
                 }
             }
             else if (m.Msg == WM_LBUTTONDOWN)
@@ -220,17 +266,21 @@ namespace AutoClicker
         Bitmap goUp = new Bitmap(@"assets/uparrowimg.png");
         private void arrow1_Click(object sender, EventArgs e)
         {
+            handleChildrenMouseOver(sender, e);
             if (isOpen)
             {
-                panel2.Height = 370;
-                arrow1.BackgroundImage = goUp;
+                panel2.Height = 300;
+                arrow1.Image = goUp;
+                arrow1.SizeMode = PictureBoxSizeMode.StretchImage;
             }
             else
             {
-                panel2.Height = 50;
-                arrow1.BackgroundImage = goDown;
+                panel2.Height = 60;
+                arrow1.Image = goDown;
+                arrow1.SizeMode = PictureBoxSizeMode.StretchImage;
             }
             isOpen = !isOpen;
+
         }
 
         private void panel2_Click(object sender, EventArgs e)
@@ -240,6 +290,50 @@ namespace AutoClicker
                 panel2.Height = 370;
                 isOpen = !isOpen;
             }
+        }
+
+
+        private void panel5_Paint(object sender, PaintEventArgs e)
+        {
+            // Get the current scroll position and total content height of panel5
+            int verticalPosition = panel5.VerticalScroll.Value;
+            int verticalMax = panel5.VerticalScroll.Maximum;
+            int verticalMin = panel5.VerticalScroll.Minimum;
+            int verticalVisible = panel5.ClientRectangle.Height;
+
+            // Calculate the total content height by summing up the heights of all controls in panel5
+            int totalContentHeight = panel5.Controls.Cast<Control>().Sum(control => control.Height);
+
+            // Calculate the visible content height as the difference between the total content height and panel5 height
+            int visibleContentHeight = totalContentHeight - verticalVisible;
+
+            // Calculate the thumb height and position based on the proportion of visible content
+            int thumbHeight = Math.Max((verticalVisible * verticalVisible) / totalContentHeight, 20);
+            int thumbPosition = verticalPosition * (verticalVisible - thumbHeight) / (verticalMax - verticalMin);
+
+            // Draw the scrollbar track
+            Rectangle trackRectangle = new Rectangle(panel5.Width - SystemInformation.VerticalScrollBarWidth, 19, 10, panel5.Height);
+            using (var trackBrush = new SolidBrush(Color.Red))
+            {
+                e.Graphics.FillRectangle(trackBrush, trackRectangle);
+            }
+
+            // Draw the thumb
+            Rectangle thumbRectangle = new Rectangle(panel5.Width - SystemInformation.VerticalScrollBarWidth, thumbPosition, SystemInformation.VerticalScrollBarWidth, thumbHeight);
+            using (var thumbBrush = new SolidBrush(Color.FromArgb(80, 110, 227)))
+            {
+                e.Graphics.FillRectangle(thumbBrush, thumbRectangle);
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+           Application.Exit();
+        }
+
+        private void Minimize_Click(object sender, EventArgs e)
+        {
+            WindowState = FormWindowState.Minimized;
         }
     }
 
