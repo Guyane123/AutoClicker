@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IdentityModel.Claims;
 using System.IO;
 using System.Linq;
 using System.Media;
@@ -13,7 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
-
+using System.Windows.Input;
 using static Click;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
@@ -25,8 +26,32 @@ namespace AutoClicker
     {
         private KeyboardHook keyboardHook;
         private MouseHook mouseHook;
+
         private SoundPlayer clickSound = new SoundPlayer(@"assets/mouse1.wav");
+        Bitmap goDown = new Bitmap(@"assets/downarrowimg.png");
+        Bitmap goUp = new Bitmap(@"assets/uparrowimg.png");
+
         private Click c = new Click();
+
+        private bool isMouseDown = false;
+
+        private Point lastLocation;
+
+        private Keys LeftClickerBindKey = Keys.F6;
+        private Keys RightClickerBindKey = Keys.F7;
+
+        private Random random = new Random();
+        private double averageInterval = 1000.0;
+
+        private bool isOpenPanel1 = true;
+        private bool isOpenPanel2 = true;
+        private bool isOpenPanel3 = true;
+
+        private bool isChangingBound = false;
+        private bool isChangingBoundRight = false;
+
+
+
 
         public Form1()
         {
@@ -41,18 +66,25 @@ namespace AutoClicker
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            VerticalScroll.Visible = false;
-            keyboardHook = new KeyboardHook();
-            KeyboardHook.Hook();
-            KeyboardHook.KeyDown += HandleKeyUp;
+           
 
-            mouseHook = new MouseHook();
+            VerticalScroll.Visible = false;
+            //keyboardHook = new KeyboardHook();
+            KeyboardHook.Hook();
+            KeyboardHook.KeyDown += HandleKeyDown;
+
+            //mouseHook = new MouseHook();
             MouseHook.Hook();
             MouseHook.MouseDown += HandleMouseDown;
             MouseHook.MouseUp += HandleMouseUp;
 
+            MouseHook.RightMouseDown += HandleRightMouseDown;
+            MouseHook.RightMouseUp += HandleRightMouseUp;
+
             arrow1.Image = goDown;
-            panel2.Height = 60;
+            panel2.Height = 84;
+            roundedPanel2.Height = 84;
+            roundedPanel4.Height = 84;
             arrow1.SizeMode = PictureBoxSizeMode.StretchImage;
 
 
@@ -64,13 +96,16 @@ namespace AutoClicker
             this.AutoClickerOnOff.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
             this.checkBox1.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
             this.cps.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
-            this.label3.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.LeftClickerLabel.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
             this.label4.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
             this.label5.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
             this.label6.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
+            this.panel8.MouseEnter += new System.EventHandler(handleChildrenMouseOver);
 
 
             AutoClickerOnOff.ButtonImage = Image.FromFile(@"assets/autoclickerimg.png");
+            RightClickerOnOff.ButtonImage = Image.FromFile(@"assets/rightautoclickerimg.png");
+
 
 
         }
@@ -81,14 +116,22 @@ namespace AutoClicker
             panel2.isMouseOver = true;
         }
 
-        private void HandleKeyUp(int keyCode)
+        private void HandleKeyDown(int keyCode)
         {
-            if (keyCode == (int)Keys.F6)
+            if (keyCode == (int)LeftClickerBindKey)
             {
                 AutoClickerOnOff.IsOn = !AutoClickerOnOff.IsOn;
                 if (!AutoClickerOnOff.IsOn)
                 {
-                    StopAutoclicker();
+                    StopAutoclicker(click);
+                }
+            }
+            else if (keyCode == (int)RightClickerBindKey)
+            {
+                RightClickerOnOff.IsOn = !RightClickerOnOff.IsOn;
+                if (!RightClickerOnOff.IsOn)
+                {
+                    StopAutoclicker(rightClick);
                 }
             }
         }
@@ -97,7 +140,7 @@ namespace AutoClicker
         {
             if (AutoClickerOnOff.IsOn)
             {
-                StartAutoclicker();
+                StartAutoclicker(click, cPSTrackBar);
             }
         }
 
@@ -105,17 +148,31 @@ namespace AutoClicker
         {
             if (AutoClickerOnOff.IsOn)
             {
-                StopAutoclicker();
+                StopAutoclicker(click);
             }
         }
+        private void HandleRightMouseDown()
+        {
+            if (RightClickerOnOff.IsOn)
+            {
+                StartAutoclicker(rightClick, cPSTrackBarRight);
+            }
+        }
+
+        private void HandleRightMouseUp()
+        {
+            if (RightClickerOnOff.IsOn)
+            {
+                StopAutoclicker(rightClick);
+            }
+        }
+
 
         private void cPSTrackBar_Scroll(object sender, EventArgs e)
         {
             cps.Text = "CPS: " + cPSTrackBar.Value.ToString();
         }
 
-        private Random random = new Random();
-        private double averageInterval = 1000.0;
 
         private int GenerateRandomInterval()
         {
@@ -161,13 +218,14 @@ namespace AutoClicker
             return mean + stdDev * randStdNormal;
         }
 
-
-
-        private void click_Tick(object sender, EventArgs e)
+        private void rightClick_Tick(object sender, EventArgs e)
         {
-
-            mouse_event((int)(MouseEventFlags.LEFTDOWN), 0, 0, 0, 0);
-            mouse_event((int)(MouseEventFlags.LEFTUP), 0, 0, 0, 0);
+            clicker(rightClick, MouseEventFlags.RIGHTDOWN, MouseEventFlags.RIGHTUP, cPSTrackBarRight);
+        }
+        private void clicker(System.Windows.Forms.Timer cl, MouseEventFlags leftOrRightDown, MouseEventFlags leftOrRightUp, TrackBar trackbar)
+        {
+            mouse_event((int)(leftOrRightDown), 0, 0, 0, 0);
+            mouse_event((int)(leftOrRightUp), 0, 0, 0, 0);
 
             if (ClickSoundCheckBox.Checked)
             {
@@ -178,43 +236,41 @@ namespace AutoClicker
 
             if (RandomizerCheckBox.Checked)
             {
-                click.Interval = randomInterval;
-                label1.Text = randomInterval.ToString();
+                cl.Interval = randomInterval;
             }
             else
             {
-                click.Interval = 1000/ (int)cPSTrackBar.Value;
+                cl.Interval = 1000 / (int)trackbar.Value;
             }
 
-            click.Stop();
-            click.Start();
+            cl.Stop();
+            cl.Start();
+        }
+        private void click_Tick(object sender, EventArgs e)
+        {
+            clicker(click, MouseEventFlags.LEFTDOWN, MouseEventFlags.LEFTUP, cPSTrackBar);
+
         }
 
 
 
-        public void StartAutoclicker()
+        public void StartAutoclicker(System.Windows.Forms.Timer timer, System.Windows.Forms.TrackBar trackbar)
         {
-            click.Stop();
-            if (cPSTrackBar.Value != 0)
+            timer.Stop();
+            if (trackbar.Value != 0)
             {
-                click.Enabled = true;
-                click.Interval = new Random().Next(900, 1100) / cPSTrackBar.Value;
-
-
-
-                click.Start();
+                timer.Enabled = true;
+                timer.Interval = new Random().Next(900, 1100) / trackbar.Value;
+                timer.Start();
             }
             else
             {
-                click.Stop();
+                timer.Stop();
             }
         }
-
-        public void StopAutoclicker()
+        public void StopAutoclicker(System.Windows.Forms.Timer timer)
         {
-            click.Stop();
-
-
+            timer.Stop();
         }
 
         public bool PreFilterMessage(ref Message m)
@@ -223,6 +279,8 @@ namespace AutoClicker
             const int WM_KEYUP = 0x0101;
             const int WM_LBUTTONUP = 0x0201;
             const int WM_LBUTTONDOWN = 0x0202;
+            const int WM_RBUTTONDOWN =  0x0204;
+            const int WM_RBUTTONUP = 0x0205;
 
             if (m.Msg == WM_KEYDOWN)
             {
@@ -230,19 +288,36 @@ namespace AutoClicker
                 {
                     AutoClickerOnOff.IsOn = !AutoClickerOnOff.IsOn;
                 }
+                if ((Keys)m.WParam.ToInt32() == Keys.F7) {
+                    RightClickerOnOff.IsOn = !RightClickerOnOff.IsOn;
+                }
             }
             else if (m.Msg == WM_LBUTTONDOWN)
             {
                 if ((Keys)m.WParam.ToInt32() == Keys.LButton)
                 {
-                    StartAutoclicker();
+                    StartAutoclicker(click, cPSTrackBar);
                 }
             }
             else if (m.Msg == WM_LBUTTONUP)
             {
                 if ((Keys)m.WParam.ToInt32() == Keys.LButton)
                 {
-                    StopAutoclicker();
+                    StopAutoclicker(click);
+                }
+            }
+            else if (m.Msg == WM_RBUTTONDOWN)
+            {
+                if ((Keys)m.WParam.ToInt32() == Keys.RButton)
+                {
+                    StartAutoclicker(rightClick, cPSTrackBarRight);
+                }
+            }
+            else if (m.Msg == WM_RBUTTONUP)
+            {
+                if ((Keys)m.WParam.ToInt32() == Keys.RButton)
+                {
+                    StopAutoclicker(rightClick);
                 }
             }
 
@@ -260,103 +335,183 @@ namespace AutoClicker
                 cPSTrackBar.Maximum = 20;
             }
         }
-        private bool isOpen = true;
-
-        Bitmap goDown = new Bitmap(@"assets/downarrowimg.png");
-        Bitmap goUp = new Bitmap(@"assets/uparrowimg.png");
         private void arrow1_Click(object sender, EventArgs e)
         {
+            Point rd1 = new Point(23, 139);
+
+
             handleChildrenMouseOver(sender, e);
-            if (isOpen)
+            if (isOpenPanel1)
             {
-                panel2.Height = 300;
+                panel2.Height = 465;
                 arrow1.Image = goUp;
                 arrow1.SizeMode = PictureBoxSizeMode.StretchImage;
+                roundedPanel4.Location = new Point(roundedPanel4.Location.X, roundedPanel4.Location.Y + panel2.Height - 84);
+             
+
             }
             else
             {
-                panel2.Height = 60;
+                panel2.Height = 84;
                 arrow1.Image = goDown;
                 arrow1.SizeMode = PictureBoxSizeMode.StretchImage;
-            }
-            isOpen = !isOpen;
+                roundedPanel4.Location = rd1;
 
+            }
+            isOpenPanel1 = !isOpenPanel1;
+
+        }
+
+        private void arrow2_Click(object sender, EventArgs e)
+        {
+            handleChildrenMouseOver(sender, e);
+            if (isOpenPanel2)
+            {
+                roundedPanel2.Height = 465;
+                arrow2.Image = goUp;
+                arrow2.SizeMode = PictureBoxSizeMode.StretchImage;
+
+
+            }
+            else
+            {
+                roundedPanel2.Height = 84;
+                arrow2.Image = goDown;
+                arrow2.SizeMode = PictureBoxSizeMode.StretchImage;
+
+            }
+            isOpenPanel2 = !isOpenPanel2;
         }
 
         private void panel2_Click(object sender, EventArgs e)
         {
-            if (isOpen)
+            if (isOpenPanel1)
             {
                 panel2.Height = 370;
-                isOpen = !isOpen;
+                isOpenPanel1 = !isOpenPanel1;
+
             }
         }
 
 
-        private void panel5_Paint(object sender, PaintEventArgs e)
+
+
+        private void panel6_MouseDown(object sender, MouseEventArgs e)
         {
-            // Get the current scroll position and total content height of panel5
-            int verticalPosition = panel5.VerticalScroll.Value;
-            int verticalMax = panel5.VerticalScroll.Maximum;
-            int verticalMin = panel5.VerticalScroll.Minimum;
-            int verticalVisible = panel5.ClientRectangle.Height;
-
-            // Calculate the total content height by summing up the heights of all controls in panel5
-            int totalContentHeight = panel5.Controls.Cast<Control>().Sum(control => control.Height);
-
-            // Calculate the visible content height as the difference between the total content height and panel5 height
-            int visibleContentHeight = totalContentHeight - verticalVisible;
-
-            // Calculate the thumb height and position based on the proportion of visible content
-            int thumbHeight = Math.Max((verticalVisible * verticalVisible) / totalContentHeight, 20);
-            int thumbPosition = verticalPosition * (verticalVisible - thumbHeight) / (verticalMax - verticalMin);
-
-            // Draw the scrollbar track
-            Rectangle trackRectangle = new Rectangle(panel5.Width - SystemInformation.VerticalScrollBarWidth, 19, 10, panel5.Height);
-            using (var trackBrush = new SolidBrush(Color.Red))
-            {
-                e.Graphics.FillRectangle(trackBrush, trackRectangle);
-            }
-
-            // Draw the thumb
-            Rectangle thumbRectangle = new Rectangle(panel5.Width - SystemInformation.VerticalScrollBarWidth, thumbPosition, SystemInformation.VerticalScrollBarWidth, thumbHeight);
-            using (var thumbBrush = new SolidBrush(Color.FromArgb(80, 110, 227)))
-            {
-                e.Graphics.FillRectangle(thumbBrush, thumbRectangle);
-            }
+            isMouseDown = true;
+            lastLocation = e.Location;
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void panel6_MouseUp(object sender, MouseEventArgs e)
         {
-           Application.Exit();
+            isMouseDown = false;
         }
 
-        private void Minimize_Click(object sender, EventArgs e)
+        private void panel6_MouseLeave(object sender, EventArgs e)
+        {
+            isMouseDown = false;
+        }
+
+        private void panel6_MouseMove(object sender, MouseEventArgs e)
+        {
+            if(isMouseDown)
+            {
+                this.Location = new Point(
+                (this.Location.X - lastLocation.X) + e.X, (this.Location.Y - lastLocation.Y) + e.Y);
+            }
+        }
+
+
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private void Minimize_Click_1(object sender, EventArgs e)
         {
             WindowState = FormWindowState.Minimized;
         }
-    }
 
-
-
-    public class Arrow : Button
-    {
-        private Color borderColor = Color.FromArgb(30,30,30); 
-
-        public Arrow()
+        private void button1_MouseHover(object sender, EventArgs e)
         {
-            this.FlatStyle = FlatStyle.Flat;
-            this.FlatAppearance.BorderSize = 1;
-            this.FlatAppearance.BorderColor = borderColor;
-            this.Height = 50;
-            this.Width = 50;
+            button1.BackColor = Color.Red;
         }
 
-        protected override void OnPaint(PaintEventArgs e)
+        private void button1_MouseLeave(object sender, EventArgs e)
         {
-            base.OnPaint(e);
+            button1.BackColor = Color.FromArgb(26,26,27);
+        }
 
-            ControlPaint.DrawBorder(e.Graphics, this.ClientRectangle, borderColor, ButtonBorderStyle.Solid);
+        private void cPSTrackBarRight_Scroll(object sender, EventArgs e)
+        {
+            cpsRight.Text = "Clicks Per Seconds : " + cPSTrackBarRight.Value.ToString();
+        }
+
+        private void BlatantCheckboxRight_CheckedChanged(object sender, EventArgs e)
+        {
+            if(BlatantCheckboxRight.Checked)
+            {
+                cPSTrackBarRight.Maximum = 50;
+            }else
+            {
+                cPSTrackBarRight.Maximum = 20;
+            }
+        }
+
+
+        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        {
+            if(isChangingBound == true)
+            {
+                LeftClickerBindKey = (Keys)e.KeyCode;
+                LeftClickerLabel.Text = "BOUND TO " + (Keys)e.KeyCode;
+                isChangingBound = false;
+            }
+            if(isChangingBoundRight == true)
+            {
+                RightClickerBindKey = (Keys)e.KeyCode;
+                RightClickerLabel.Text = "BOUND TO " + (Keys)e.KeyCode;
+                isChangingBoundRight = false;
+            }
+        }
+
+        private void roundedPanel1_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (isChangingBound == false)
+            {
+                LeftClickerLabel.Text = "PRESS ANY KEY";
+                isChangingBound = true;
+            }
+        }
+
+        private void roundedPanel3_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (isChangingBoundRight == false)
+            {
+                RightClickerLabel.Text = "PRESS ANY KEY";
+                isChangingBoundRight = true;
+            }
+        }
+
+        private void label3_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private void arrow3_Click(object sender, EventArgs e)
+        {
+
+            if(isOpenPanel3 == true)
+            {
+                roundedPanel4.Height = 370;
+            }else
+            {
+                roundedPanel4.Height = 80;
+            }
+
+            isOpenPanel3 = !isOpenPanel3;
+
         }
     }
+
 }

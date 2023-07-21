@@ -28,7 +28,6 @@ public class Click
     public void leftClick(int duration)
     {
         mouse_event((int)(MouseEventFlags.LEFTDOWN), 0, 0, 0, 0);
-        //Thread.Sleep(duration);
         mouse_event((int)(MouseEventFlags.LEFTUP), 0, 0, 0, 0);
     }
 
