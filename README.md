@@ -2,7 +2,8 @@
 
 AutoClicker is a Windows Forms Application (.NET) developed using C#. It serves as an auto-clicking program, automating mouse clicks for you.
 
-![image](https://github.com/Guyane123/AutoClicker/assets/69190311/9409baac-ce4b-4e82-8b7a-eaa1753014b8)
+![image](https://github.com/Guyane123/AutoClicker/assets/69190311/848ea289-f263-490c-8a0a-7995593d33e4)
+
 
 
 ## Functionalities 🚀
